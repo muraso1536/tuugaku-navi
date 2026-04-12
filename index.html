@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>市大通学ナビ</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#005baa">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; text-align: center; color: #005baa; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        input[type="time"] { width: 100%; padding: 12px; font-size: 1.5rem; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; }
+        button { width: 100%; padding: 16px; background-color: #005baa; color: white; border: none; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,91,170,0.3); transition: 0.2s; }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        
+        .result-box { margin-top: 20px; padding: 15px; border-left: 5px solid #005baa; background-color: #eef5fa; border-radius: 8px; display: none; }
+        .route-step { margin-bottom: 10px; }
+        .time { font-size: 1.4rem; font-weight: bold; color: #d93025; }
+        .arrow { text-align: center; color: #666; font-size: 1rem; margin: 10px 0; }
+        .error { color: red; font-weight: bold; text-align: center; display: none; margin-top: 15px;}
+        .offline-badge { text-align: center; font-size: 0.8rem; color: #4caf50; margin-top: 10px; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 市大通学ナビ</h1>
+        <form id="searchForm">
+            <div class="input-group">
+                <input type="time" id="targetTime" required>
+            </div>
+            <button type="submit">最短ルートを検索</button>
+        </form>
+
+        <div id="errorMsg" class="error"></div>
+
+        <div id="resultBox" class="result-box">
+            <div class="route-step">
+                🚆 <strong>JR山陽本線</strong> (<span id="jrDest"></span>行)<br>
+                <span class="time" id="jrDep"></span> 向洋駅 発<br>
+                <span class="time" id="jrArr"></span> 横川駅 着
+            </div>
+            <div class="arrow">↓ 乗り換え🏃‍♂️ ↓</div>
+            <div class="route-step">
+                🚌 <strong>広電バス</strong> (<span id="busDest"></span>行)<br>
+                <span class="time" id="busDep"></span> 横川駅前 発<br>
+                <span class="time" id="busArr"></span> 市立大学前 着
+            </div>
+        </div>
+        
+        
+    </div>
+
+    <script>
+        // --- 1. データ部分（CSVの中身をJSの配列にしたもの） ---
+        const jrData = [
+            {dep: "05:40", arr: "05:56", dest: "岩国"}, {dep: "06:12", arr: "06:29", dest: "岩国"},
+            {dep: "06:32", arr: "06:45", dest: "南岩国"}, {dep: "06:41", arr: "07:03", dest: "由宇"},
+            {dep: "06:56", arr: "07:17", dest: "五日市"}, {dep: "07:09", arr: "07:27", dest: "岩国"},
+            {dep: "07:22", arr: "07:38", dest: "岩国"}, {dep: "07:42", arr: "07:57", dest: "岩国"},
+            {dep: "07:56", arr: "08:15", dest: "岩国"}, {dep: "08:18", arr: "08:34", dest: "岩国"},
+            {dep: "08:34", arr: "08:50", dest: "岩国"}, {dep: "08:51", arr: "09:04", dest: "岩国"},
+            {dep: "09:06", arr: "09:19", dest: "大野浦"}, {dep: "09:18", arr: "09:34", dest: "岩国"},
+            {dep: "09:33", arr: "09:49", dest: "大野浦"}, {dep: "09:51", arr: "10:04", dest: "岩国"},
+            {dep: "10:06", arr: "10:19", dest: "大野浦"}, {dep: "10:12", arr: "10:35", dest: "岩国"},
+            {dep: "10:27", arr: "10:49", dest: "大野浦"}, {dep: "10:51", arr: "11:05", dest: "岩国"},
+            {dep: "11:06", arr: "11:20", dest: "大野浦"}, {dep: "11:22", arr: "11:35", dest: "岩国"},
+            {dep: "11:36", arr: "11:49", dest: "大野浦"}, {dep: "11:51", arr: "12:04", dest: "岩国"},
+            {dep: "12:06", arr: "12:19", dest: "大野浦"}, {dep: "12:22", arr: "12:35", dest: "岩国"},
+            {dep: "12:30", arr: "12:43", dest: "五日市"}, {dep: "12:36", arr: "12:49", dest: "大野浦"},
+            {dep: "12:51", arr: "13:04", dest: "岩国"}
+        ];
+
+        const busData = [
+            {dep: "07:48", arr: "08:03", dest: "こころ南中央"}, {dep: "07:53", arr: "08:08", dest: "こころ産業団地"},
+            {dep: "07:58", arr: "08:13", dest: "こころ南中央"}, {dep: "08:03", arr: "08:18", dest: "こころ産業団地"},
+            {dep: "08:08", arr: "08:23", dest: "こころ南中央"}, {dep: "08:13", arr: "08:28", dest: "こころ西風梅苑"},
+            {dep: "08:18", arr: "08:33", dest: "こころ南中央"}, {dep: "08:23", arr: "08:38", dest: "こころ産業団地"},
+            {dep: "08:28", arr: "08:43", dest: "花の季台"}, {dep: "08:33", arr: "08:48", dest: "こころ西風梅苑"},
+            {dep: "08:38", arr: "08:53", dest: "こころ南中央"}, {dep: "08:43", arr: "08:58", dest: "こころ産業団地"},
+            {dep: "08:48", arr: "09:03", dest: "花の季台"}, {dep: "08:58", arr: "09:13", dest: "こころ西風梅苑"},
+            {dep: "09:08", arr: "09:23", dest: "こころ南中央"}, {dep: "09:18", arr: "09:33", dest: "こころ産業団地"},
+            {dep: "09:28", arr: "09:43", dest: "花の季台"}, {dep: "09:38", arr: "09:53", dest: "こころ西風梅苑"},
+            {dep: "09:48", arr: "10:03", dest: "花の季台"}, {dep: "09:53", arr: "10:08", dest: "こころ産業団地"},
+            {dep: "09:58", arr: "10:13", dest: "花の季台"}, {dep: "10:03", arr: "10:18", dest: "こころ西風梅苑"},
+            {dep: "10:08", arr: "10:23", dest: "こころ南中央"}, {dep: "10:13", arr: "10:28", dest: "花の季台"},
+            {dep: "10:18", arr: "10:33", dest: "こころ産業団地"}, {dep: "10:28", arr: "10:43", dest: "花の季台"},
+            {dep: "10:48", arr: "11:03", dest: "花の季台"}, {dep: "11:08", arr: "11:23", dest: "こころ南中央"},
+            {dep: "11:28", arr: "11:43", dest: "花の季台"}, {dep: "11:48", arr: "12:03", dest: "花の季台"},
+            {dep: "12:08", arr: "12:23", dest: "こころ南中央"}, {dep: "12:18", arr: "12:33", dest: "こころ産業団地"},
+            {dep: "12:28", arr: "12:43", dest: "花の季台"}, {dep: "12:38", arr: "12:53", dest: "こころ西風梅苑"},
+            {dep: "12:48", arr: "13:03", dest: "花の季台"}, {dep: "13:08", arr: "13:23", dest: "こころ南中央"},
+            {dep: "13:28", arr: "13:43", dest: "花の季台"}, {dep: "13:48", arr: "14:03", dest: "花の季台"},
+            {dep: "13:58", arr: "14:13", dest: "こころ西風梅苑"}, {dep: "14:08", arr: "14:23", dest: "こころ南中央"},
+            {dep: "14:18", arr: "14:33", dest: "こころ西風梅苑"}, {dep: "14:28", arr: "14:43", dest: "花の季台"},
+            {dep: "14:48", arr: "15:03", dest: "花の季台"}, {dep: "15:08", arr: "15:23", dest: "こころ南中央"},
+            {dep: "15:28", arr: "15:43", dest: "花の季台"}, {dep: "15:38", arr: "15:53", dest: "こころ産業団地"},
+            {dep: "15:48", arr: "16:03", dest: "花の季台"}, {dep: "15:58", arr: "16:13", dest: "こころ西風梅苑"},
+            {dep: "16:08", arr: "16:23", dest: "こころ南中央"}, {dep: "17:58", arr: "18:13", dest: "花の季台"}
+        ];
+
+        // --- 2. ページ読み込み時に現在時刻をセット ---
+        window.onload = () => {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("targetTime").value = `${h}:${m}`;
+        };
+
+        // --- 3. 検索ボタンを押した時のロジック ---
+        document.getElementById("searchForm").addEventListener("submit", function(e) {
+            e.preventDefault(); // 画面の再読み込みを防ぐ
+            
+            const target = document.getElementById("targetTime").value;
+            const resBox = document.getElementById("resultBox");
+            const errBox = document.getElementById("errorMsg");
+            
+            resBox.style.display = "none";
+            errBox.style.display = "none";
+
+            // JSのfindメソッドで条件に合う「最初の1件」を探す
+            const nextJr = jrData.find(train => train.dep >= target);
+            if (!nextJr) {
+                errBox.innerText = "指定時刻以降のJRが見つかりません。";
+                errBox.style.display = "block";
+                return;
+            }
+
+            const nextBus = busData.find(bus => bus.dep >= nextJr.arr);
+            if (!nextBus) {
+                errBox.innerText = "JRには乗れますが、接続するバスがありません。";
+                errBox.style.display = "block";
+                return;
+            }
+
+            // 結果を画面に書き込む
+            document.getElementById("jrDep").innerText = nextJr.dep;
+            document.getElementById("jrArr").innerText = nextJr.arr;
+            document.getElementById("jrDest").innerText = nextJr.dest;
+            
+            document.getElementById("busDep").innerText = nextBus.dep;
+            document.getElementById("busArr").innerText = nextBus.arr;
+            document.getElementById("busDest").innerText = nextBus.dest;
+            
+            resBox.style.display = "block";
+        });
+
+        // --- 4. Service Worker の登録（オフラインの魔法） ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => {
+                console.log("Service Worker Registered!");
+            });
+        }
+    </script>
+</body>
+</html>
