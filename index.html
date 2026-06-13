@@ -6,73 +6,249 @@
     <title>市大通学ナビ</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#005baa">
+    <meta name="theme-color" content="#333333">
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h1 { font-size: 1.5rem; text-align: center; color: #005baa; margin-top: 0; }
-        .input-group { margin-bottom: 15px; }
-        input[type="time"] { width: 100%; padding: 12px; font-size: 1.5rem; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 16px; background-color: #005baa; color: white; border: none; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,91,170,0.3); transition: 0.2s; }
-        button:active { transform: translateY(2px); box-shadow: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h1 { font-size: 1.2rem; text-align: center; color: #333; margin-top: 0; margin-bottom: 20px; font-weight: 600; }
+        .input-group { margin-bottom: 16px; }
+        input[type="time"] { width: 100%; padding: 12px; font-size: 1.4rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; text-align: center; background-color: #fafafa; }
+        button { width: 100%; padding: 14px; background-color: #333; color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+        button:active { background-color: #555; }
         
-        .result-box { margin-top: 20px; padding: 15px; border-left: 5px solid #005baa; background-color: #eef5fa; border-radius: 8px; display: none; }
-        .route-step { margin-bottom: 10px; }
-        .time { font-size: 1.4rem; font-weight: bold; color: #d93025; }
-        .arrow { text-align: center; color: #666; font-size: 1rem; margin: 10px 0; }
-        .error { color: red; font-weight: bold; text-align: center; display: none; margin-top: 15px;}
-        .offline-badge { text-align: center; font-size: 0.8rem; color: #4caf50; margin-top: 10px; font-weight: bold;}
+        .result-box { margin-top: 24px; padding: 16px; border: 1px solid #eee; background-color: #fafafa; border-radius: 6px; display: none; }
+        .route-badge { display: inline-block; background-color: #666; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-bottom: 12px; letter-spacing: 0.05em; }
+        .route-badge.direct { background-color: #005baa; }
+        
+        .route-step { margin-bottom: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #eee; }
+        .time { font-size: 1.2rem; font-weight: 600; color: #333; margin-right: 8px; }
+        .arrow { text-align: center; color: #999; font-size: 0.9rem; margin: 8px 0; }
+        .error { color: #d93025; font-size: 0.9rem; text-align: center; display: none; margin-top: 16px;}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚌 市大通学ナビ</h1>
+        <h1>市大通学ナビ</h1>
         <form id="searchForm">
             <div class="input-group">
                 <input type="time" id="targetTime" required>
             </div>
-            <button type="submit">最短ルートを検索</button>
+            <button type="submit">検索</button>
         </form>
 
         <div id="errorMsg" class="error"></div>
 
         <div id="resultBox" class="result-box">
+            <div id="routeType" class="route-badge"></div>
+            
+            <div id="routeSteps"></div>
+            
+            <div class="arrow">▼</div>
+            
             <div class="route-step">
-                🚆 <strong>JR山陽本線</strong> (<span id="jrDest"></span>行)<br>
-                <span class="time" id="jrDep"></span> 向洋駅 発<br>
-                <span class="time" id="jrArr"></span> 横川駅 着
-            </div>
-            <div class="arrow">↓ 乗り換え🏃‍♂️ ↓</div>
-            <div class="route-step">
-                🚌 <strong>広電バス</strong> (<span id="busDest"></span>行)<br>
+                <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">広電バス (<span id="busDest"></span>行)</div>
                 <span class="time" id="busDep"></span> 横川駅前 発<br>
                 <span class="time" id="busArr"></span> 市立大学前 着
             </div>
         </div>
-        
-        
     </div>
 
     <script>
-        // --- 1. データ部分（CSVの中身をJSの配列にしたもの） ---
-        const jrData = [
+        // --- 1. データ群 ---
+        const jrDirectData = [
             {dep: "05:40", arr: "05:56", dest: "岩国"}, {dep: "06:12", arr: "06:29", dest: "岩国"},
             {dep: "06:32", arr: "06:45", dest: "南岩国"}, {dep: "06:41", arr: "07:03", dest: "由宇"},
-            {dep: "06:56", arr: "07:17", dest: "五日市"}, {dep: "07:09", arr: "07:27", dest: "岩国"},
-            {dep: "07:22", arr: "07:38", dest: "岩国"}, {dep: "07:42", arr: "07:57", dest: "岩国"},
-            {dep: "07:56", arr: "08:15", dest: "岩国"}, {dep: "08:18", arr: "08:34", dest: "岩国"},
-            {dep: "08:34", arr: "08:50", dest: "岩国"}, {dep: "08:51", arr: "09:04", dest: "岩国"},
-            {dep: "09:06", arr: "09:19", dest: "大野浦"}, {dep: "09:18", arr: "09:34", dest: "岩国"},
-            {dep: "09:33", arr: "09:49", dest: "大野浦"}, {dep: "09:51", arr: "10:04", dest: "岩国"},
-            {dep: "10:06", arr: "10:19", dest: "大野浦"}, {dep: "10:12", arr: "10:35", dest: "岩国"},
-            {dep: "10:27", arr: "10:49", dest: "大野浦"}, {dep: "10:51", arr: "11:05", dest: "岩国"},
-            {dep: "11:06", arr: "11:20", dest: "大野浦"}, {dep: "11:22", arr: "11:35", dest: "岩国"},
-            {dep: "11:36", arr: "11:49", dest: "大野浦"}, {dep: "11:51", arr: "12:04", dest: "岩国"},
-            {dep: "12:06", arr: "12:19", dest: "大野浦"}, {dep: "12:22", arr: "12:35", dest: "岩国"},
-            {dep: "12:30", arr: "12:43", dest: "五日市"}, {dep: "12:36", arr: "12:49", dest: "大野浦"},
-            {dep: "12:51", arr: "13:04", dest: "岩国"}
+            {dep: "06:56", arr: "07:11", dest: "岩国"}, {dep: "07:07", arr: "07:20", dest: "五日市"},
+            {dep: "07:20", arr: "07:33", dest: "五日市"}, {dep: "07:26", arr: "07:42", dest: "岩国"},
+            {dep: "07:31", arr: "07:49", dest: "五日市"}, {dep: "07:42", arr: "07:55", dest: "岩国"},
+            {dep: "07:56", arr: "08:11", dest: "岩国"}, {dep: "08:00", arr: "08:15", dest: "緑井"},
+            {dep: "08:13", arr: "08:26", dest: "岩国"}, {dep: "08:27", arr: "08:40", dest: "岩国"},
+            {dep: "08:31", arr: "09:04", dest: "大野浦"}, {dep: "08:35", arr: "08:50", dest: "五日市"},
+            {dep: "08:45", arr: "08:58", dest: "岩国"}, {dep: "08:58", arr: "09:12", dest: "岩国"},
+            {dep: "09:14", arr: "09:27", dest: "岩国"}, {dep: "09:20", arr: "09:49", dest: "大野浦"},
+            {dep: "09:51", arr: "10:04", dest: "岩国"}, {dep: "10:06", arr: "10:19", dest: "大野浦"},
+            {dep: "10:51", arr: "11:05", dest: "岩国"}, {dep: "11:06", arr: "11:20", dest: "大野浦"},
+            {dep: "11:22", arr: "11:35", dest: "岩国"}, {dep: "11:36", arr: "11:49", dest: "大野浦"},
+            {dep: "11:51", arr: "12:04", dest: "岩国"}, {dep: "12:06", arr: "12:19", dest: "大野浦"},
+            {dep: "12:22", arr: "12:35", dest: "岩国"}, {dep: "12:36", arr: "12:49", dest: "大野浦"},
+            {dep: "12:51", arr: "13:04", dest: "岩国"}, {dep: "13:06", arr: "13:19", dest: "大野浦"},
+            {dep: "13:22", arr: "13:35", dest: "岩国"}, {dep: "13:36", arr: "13:49", dest: "大野浦"},
+            {dep: "13:51", arr: "14:04", dest: "岩国"}, {dep: "14:06", arr: "14:19", dest: "大野浦"},
+            {dep: "14:22", arr: "14:35", dest: "岩国"}, {dep: "14:36", arr: "14:49", dest: "大野浦"},
+            {dep: "14:51", arr: "15:04", dest: "岩国"}, {dep: "15:06", arr: "15:19", dest: "岩国"},
+            {dep: "15:21", arr: "15:35", dest: "岩国"}, {dep: "15:36", arr: "15:49", dest: "岩国"},
+            {dep: "15:51", arr: "16:04", dest: "岩国"}, {dep: "16:06", arr: "16:20", dest: "岩国"},
+            {dep: "16:10", arr: "16:30", dest: "緑井"}, {dep: "16:21", arr: "16:34", dest: "岩国"},
+            {dep: "16:36", arr: "16:50", dest: "岩国"}, {dep: "16:50", arr: "17:04", dest: "南岩国"},
+            {dep: "16:58", arr: "17:13", dest: "五日市"}, {dep: "17:06", arr: "17:20", dest: "岩国"},
+            {dep: "17:13", arr: "17:27", dest: "五日市"}, {dep: "17:22", arr: "17:35", dest: "岩国"},
+            {dep: "17:36", arr: "17:50", dest: "岩国"}, {dep: "17:43", arr: "17:58", dest: "五日市"},
+            {dep: "17:51", arr: "18:05", dest: "南岩国"}, {dep: "17:58", arr: "18:13", dest: "五日市"},
+            {dep: "18:05", arr: "18:20", dest: "岩国"}, {dep: "18:18", arr: "18:50", dest: "岩国"},
+            {dep: "18:22", arr: "18:35", dest: "岩国"}, {dep: "18:30", arr: "18:43", dest: "五日市"},
+            {dep: "18:42", arr: "18:57", dest: "岩国"}, {dep: "18:50", arr: "19:05", dest: "岩国"},
+            {dep: "18:59", arr: "19:12", dest: "五日市"}, {dep: "19:07", arr: "19:19", dest: "岩国"},
+            {dep: "19:12", arr: "19:28", dest: "五日市"}, {dep: "19:21", arr: "19:35", dest: "岩国"},
+            {dep: "19:34", arr: "19:49", dest: "徳山"}, {dep: "19:44", arr: "20:05", dest: "岩国"},
+            {dep: "19:57", arr: "20:15", dest: "五日市"}, {dep: "20:01", arr: "20:18", dest: "あき亀山"},
+            {dep: "20:08", arr: "20:24", dest: "岩国"}, {dep: "20:21", arr: "20:34", dest: "五日市"},
+            {dep: "20:31", arr: "20:44", dest: "岩国"}, {dep: "20:51", arr: "21:04", dest: "岩国"},
+            {dep: "21:10", arr: "21:25", dest: "岩国"}, {dep: "21:30", arr: "21:44", dest: "岩国"},
+            {dep: "21:51", arr: "22:04", dest: "岩国"}, {dep: "22:11", arr: "22:25", dest: "岩国"},
+            {dep: "22:32", arr: "22:45", dest: "岩国"}, {dep: "23:11", arr: "23:25", dest: "岩国"},
+            {dep: "23:31", arr: "23:48", dest: "五日市"}, {dep: "23:56", arr: "00:09", dest: "岩国"}
+        ];
+
+        const jrToHiroshimaData = [
+            {dep: "05:40", arr: "05:45", dest: "岩国"}, {dep: "05:43", arr: "05:49", dest: "広島"},
+            {dep: "06:12", arr: "06:18", dest: "岩国"}, {dep: "06:32", arr: "06:38", dest: "南岩国"},
+            {dep: "06:41", arr: "06:47", dest: "由宇"}, {dep: "06:52", arr: "06:59", dest: "広島"},
+            {dep: "06:56", arr: "07:02", dest: "岩国"}, {dep: "07:07", arr: "07:13", dest: "五日市"},
+            {dep: "07:20", arr: "07:26", dest: "五日市"}, {dep: "07:26", arr: "07:32", dest: "岩国"},
+            {dep: "07:31", arr: "07:38", dest: "五日市"}, {dep: "07:36", arr: "07:43", dest: "広島"},
+            {dep: "07:42", arr: "07:48", dest: "岩国"}, {dep: "07:47", arr: "07:54", dest: "広島"},
+            {dep: "07:56", arr: "08:02", dest: "岩国"}, {dep: "08:00", arr: "08:07", dest: "緑井"},
+            {dep: "08:07", arr: "08:14", dest: "広島"}, {dep: "08:13", arr: "08:19", dest: "岩国"},
+            {dep: "08:17", arr: "08:23", dest: "広島"}, {dep: "08:27", arr: "08:33", dest: "岩国"},
+            {dep: "08:31", arr: "08:38", dest: "大野浦"}, {dep: "08:35", arr: "08:41", dest: "五日市"},
+            {dep: "08:39", arr: "08:46", dest: "広島"}, {dep: "08:45", arr: "08:51", dest: "岩国"},
+            {dep: "08:58", arr: "09:04", dest: "岩国"}, {dep: "09:03", arr: "09:09", dest: "広島"},
+            {dep: "09:14", arr: "09:20", dest: "岩国"}, {dep: "09:20", arr: "09:26", dest: "大野浦"},
+            {dep: "09:27", arr: "09:33", dest: "広島"}, {dep: "09:33", arr: "09:39", dest: "広島"},
+            {dep: "09:43", arr: "09:50", dest: "広島"}, {dep: "09:51", arr: "09:57", dest: "岩国"},
+            {dep: "09:56", arr: "10:03", dest: "広島"}, {dep: "10:06", arr: "10:12", dest: "大野浦"},
+            {dep: "10:19", arr: "10:24", dest: "広島"}, {dep: "10:27", arr: "10:34", dest: "広島"},
+            {dep: "10:39", arr: "10:46", dest: "広島"}, {dep: "10:51", arr: "10:57", dest: "岩国"},
+            {dep: "11:06", arr: "11:12", dest: "大野浦"}, {dep: "11:10", arr: "11:17", dest: "広島"},
+            {dep: "11:22", arr: "11:27", dest: "岩国"}, {dep: "11:36", arr: "11:42", dest: "大野浦"},
+            {dep: "11:40", arr: "11:47", dest: "広島"}, {dep: "11:51", arr: "11:57", dest: "岩国"},
+            {dep: "12:06", arr: "12:12", dest: "大野浦"}, {dep: "12:12", arr: "12:18", dest: "広島"},
+            {dep: "12:22", arr: "12:28", dest: "岩国"}, {dep: "12:36", arr: "12:42", dest: "大野浦"},
+            {dep: "12:51", arr: "12:57", dest: "岩国"}, {dep: "13:06", arr: "13:12", dest: "大野浦"},
+            {dep: "13:12", arr: "13:18", dest: "広島"}, {dep: "13:22", arr: "13:27", dest: "岩国"},
+            {dep: "13:36", arr: "13:42", dest: "大野浦"}, {dep: "13:51", arr: "13:57", dest: "岩国"},
+            {dep: "14:06", arr: "14:12", dest: "大野浦"}, {dep: "14:10", arr: "14:17", dest: "広島"},
+            {dep: "14:22", arr: "14:27", dest: "岩国"}, {dep: "14:36", arr: "14:42", dest: "大野浦"},
+            {dep: "14:51", arr: "14:57", dest: "岩国"}, {dep: "15:06", arr: "15:12", dest: "岩国"},
+            {dep: "15:10", arr: "15:17", dest: "広島"}, {dep: "15:21", arr: "15:27", dest: "岩国"},
+            {dep: "15:36", arr: "15:42", dest: "岩国"}, {dep: "15:51", arr: "15:57", dest: "岩国"},
+            {dep: "16:06", arr: "16:12", dest: "岩国"}, {dep: "16:10", arr: "16:17", dest: "緑井"},
+            {dep: "16:21", arr: "16:27", dest: "岩国"}, {dep: "16:36", arr: "16:42", dest: "岩国"},
+            {dep: "16:44", arr: "16:51", dest: "広島"}, {dep: "16:50", arr: "16:56", dest: "南岩国"},
+            {dep: "16:58", arr: "17:04", dest: "五日市"}, {dep: "17:06", arr: "17:12", dest: "岩国"},
+            {dep: "17:13", arr: "17:18", dest: "五日市"}, {dep: "17:22", arr: "17:27", dest: "岩国"},
+            {dep: "17:36", arr: "17:42", dest: "岩国"}, {dep: "17:43", arr: "17:49", dest: "五日市"},
+            {dep: "17:51", arr: "17:57", dest: "南岩国"}, {dep: "17:58", arr: "18:04", dest: "五日市"},
+            {dep: "18:05", arr: "18:11", dest: "岩国"}, {dep: "18:09", arr: "18:16", dest: "広島"},
+            {dep: "18:18", arr: "18:24", dest: "岩国"}, {dep: "18:22", arr: "18:27", dest: "岩国"},
+            {dep: "18:26", arr: "18:33", dest: "広島"}, {dep: "18:30", arr: "18:36", dest: "五日市"},
+            {dep: "18:37", arr: "18:44", dest: "広島"}, {dep: "18:42", arr: "18:47", dest: "岩国"},
+            {dep: "18:50", arr: "18:56", dest: "岩国"}, {dep: "18:56", arr: "19:02", dest: "広島"},
+            {dep: "18:59", arr: "19:05", dest: "五日市"}, {dep: "19:07", arr: "19:12", dest: "岩国"},
+            {dep: "19:12", arr: "19:18", dest: "五日市"}, {dep: "19:21", arr: "19:27", dest: "岩国"},
+            {dep: "19:28", arr: "19:34", dest: "広島"}, {dep: "19:34", arr: "19:40", dest: "徳山"},
+            {dep: "19:38", arr: "19:44", dest: "広島"}, {dep: "19:44", arr: "19:50", dest: "岩国"},
+            {dep: "19:51", arr: "19:56", dest: "広島"}, {dep: "19:57", arr: "20:03", dest: "五日市"},
+            {dep: "20:01", arr: "20:07", dest: "あき亀山"}, {dep: "20:08", arr: "20:14", dest: "岩国"},
+            {dep: "20:15", arr: "20:22", dest: "広島"}, {dep: "20:21", arr: "20:27", dest: "五日市"},
+            {dep: "20:27", arr: "20:33", dest: "広島"}, {dep: "20:31", arr: "20:37", dest: "岩国"},
+            {dep: "20:38", arr: "20:43", dest: "広島"}, {dep: "20:41", arr: "20:48", dest: "広島"},
+            {dep: "20:51", arr: "20:57", dest: "岩国"}, {dep: "20:56", arr: "21:03", dest: "広島"},
+            {dep: "21:10", arr: "21:16", dest: "岩国"}, {dep: "21:18", arr: "21:24", dest: "広島"},
+            {dep: "21:30", arr: "21:36", dest: "岩国"}, {dep: "21:38", arr: "21:44", dest: "広島"},
+            {dep: "21:51", arr: "21:57", dest: "岩国"}, {dep: "22:07", arr: "22:13", dest: "広島"},
+            {dep: "22:11", arr: "22:17", dest: "岩国"}, {dep: "22:32", arr: "22:37", dest: "岩国"},
+            {dep: "22:38", arr: "22:44", dest: "広島"}, {dep: "22:51", arr: "22:56", dest: "広島"},
+            {dep: "23:02", arr: "23:07", dest: "広島"}, {dep: "23:11", arr: "23:17", dest: "岩国"},
+            {dep: "23:31", arr: "23:37", dest: "五日市"}, {dep: "23:52", arr: "23:58", dest: "広島"},
+            {dep: "23:56", arr: "00:01", dest: "岩国"}
+        ];
+
+        const jrFromHiroshimaData = [
+            {dep: "05:40", arr: "05:45", dest: "緑井"}, {dep: "05:52", arr: "05:56", dest: "岩国"},
+            {dep: "05:55", arr: "06:00", dest: "あき亀山"}, {dep: "06:04", arr: "06:09", dest: "緑井"},
+            {dep: "06:11", arr: "06:15", dest: "五日市"}, {dep: "06:14", arr: "06:19", dest: "あき亀山"},
+            {dep: "06:18", arr: "06:23", dest: "梅林（広島県）"}, {dep: "06:25", arr: "06:29", dest: "岩国"},
+            {dep: "06:35", arr: "06:40", dest: "あき亀山"}, {dep: "06:40", arr: "06:45", dest: "南岩国"},
+            {dep: "06:43", arr: "06:48", dest: "梅林（広島県）"}, {dep: "06:54", arr: "06:59", dest: "あき亀山"},
+            {dep: "06:58", arr: "07:03", dest: "由宇"}, {dep: "07:06", arr: "07:11", dest: "岩国"},
+            {dep: "07:09", arr: "07:14", dest: "梅林（広島県）"}, {dep: "07:15", arr: "07:20", dest: "五日市"},
+            {dep: "07:18", arr: "07:24", dest: "あき亀山"}, {dep: "07:22", arr: "07:27", dest: "岩国"},
+            {dep: "07:28", arr: "07:33", dest: "五日市"}, {dep: "07:31", arr: "07:36", dest: "緑井"},
+            {dep: "07:37", arr: "07:42", dest: "岩国"}, {dep: "07:41", arr: "07:47", dest: "あき亀山"},
+            {dep: "07:44", arr: "07:49", dest: "五日市"}, {dep: "07:50", arr: "07:55", dest: "岩国"},
+            {dep: "07:55", arr: "08:01", dest: "緑井"}, {dep: "07:59", arr: "08:04", dest: "五日市"},
+            {dep: "08:02", arr: "08:08", dest: "あき亀山"}, {dep: "08:06", arr: "08:11", dest: "岩国"},
+            {dep: "08:10", arr: "08:15", dest: "緑井"}, {dep: "08:13", arr: "08:18", dest: "五日市"},
+            {dep: "08:17", arr: "08:23", dest: "あき亀山"}, {dep: "08:21", arr: "08:26", dest: "岩国"},
+            {dep: "08:35", arr: "08:40", dest: "岩国"}, {dep: "08:41", arr: "08:46", dest: "あき亀山"},
+            {dep: "08:45", arr: "08:50", dest: "五日市"}, {dep: "08:53", arr: "08:58", dest: "岩国"},
+            {dep: "09:00", arr: "09:04", dest: "大野浦"}, {dep: "09:03", arr: "09:08", dest: "あき亀山"},
+            {dep: "09:08", arr: "09:12", dest: "岩国"}, {dep: "09:16", arr: "09:21", dest: "五日市"},
+            {dep: "09:23", arr: "09:27", dest: "岩国"}, {dep: "09:26", arr: "09:31", dest: "緑井"},
+            {dep: "09:34", arr: "09:39", dest: "岩国"}, {dep: "09:45", arr: "09:49", dest: "大野浦"},
+            {dep: "09:48", arr: "09:53", dest: "あき亀山"}, {dep: "10:00", arr: "10:04", dest: "岩国"},
+            {dep: "10:08", arr: "10:13", dest: "あき亀山"}, {dep: "10:15", arr: "10:19", dest: "大野浦"},
+            {dep: "10:27", arr: "10:32", dest: "緑井"}, {dep: "10:30", arr: "10:35", dest: "岩国"},
+            {dep: "10:45", arr: "10:49", dest: "大野浦"}, {dep: "10:48", arr: "10:53", dest: "あき亀山"},
+            {dep: "11:00", arr: "11:05", dest: "岩国"}, {dep: "11:08", arr: "11:13", dest: "あき亀山"},
+            {dep: "11:15", arr: "11:20", dest: "大野浦"}, {dep: "11:27", arr: "11:32", dest: "緑井"},
+            {dep: "11:30", arr: "11:35", dest: "岩国"}, {dep: "11:45", arr: "11:49", dest: "大野浦"},
+            {dep: "11:48", arr: "11:53", dest: "あき亀山"}, {dep: "12:00", arr: "12:04", dest: "岩国"},
+            {dep: "12:08", arr: "12:13", dest: "あき亀山"}, {dep: "12:15", arr: "12:19", dest: "大野浦"},
+            {dep: "12:24", arr: "12:29", dest: "緑井"}, {dep: "12:30", arr: "12:35", dest: "岩国"},
+            {dep: "12:45", arr: "12:49", dest: "大野浦"}, {dep: "12:48", arr: "12:53", dest: "あき亀山"},
+            {dep: "13:00", arr: "13:04", dest: "岩国"}, {dep: "13:08", arr: "13:13", dest: "あき亀山"},
+            {dep: "13:15", arr: "13:19", dest: "大野浦"}, {dep: "13:27", arr: "13:32", dest: "緑井"},
+            {dep: "13:30", arr: "13:35", dest: "岩国"}, {dep: "13:45", arr: "13:49", dest: "大野浦"},
+            {dep: "13:48", arr: "13:53", dest: "あき亀山"}, {dep: "14:00", arr: "14:04", dest: "岩国"},
+            {dep: "14:08", arr: "14:13", dest: "あき亀山"}, {dep: "14:15", arr: "14:19", dest: "大野浦"},
+            {dep: "14:27", arr: "14:32", dest: "緑井"}, {dep: "14:30", arr: "14:35", dest: "岩国"},
+            {dep: "14:45", arr: "14:49", dest: "大野浦"}, {dep: "14:48", arr: "14:53", dest: "あき亀山"},
+            {dep: "15:00", arr: "15:04", dest: "岩国"}, {dep: "15:06", arr: "15:11", dest: "あき亀山"},
+            {dep: "15:15", arr: "15:19", dest: "岩国"}, {dep: "15:27", arr: "15:32", dest: "緑井"},
+            {dep: "15:30", arr: "15:35", dest: "岩国"}, {dep: "15:45", arr: "15:49", dest: "岩国"},
+            {dep: "15:48", arr: "15:53", dest: "あき亀山"}, {dep: "15:54", arr: "15:58", dest: "五日市"},
+            {dep: "16:00", arr: "16:04", dest: "岩国"}, {dep: "16:03", arr: "16:08", dest: "緑井"},
+            {dep: "16:12", arr: "16:17", dest: "あき亀山"}, {dep: "16:15", arr: "16:20", dest: "岩国"},
+            {dep: "16:25", arr: "16:30", dest: "緑井"}, {dep: "16:30", arr: "16:34", dest: "岩国"},
+            {dep: "16:34", arr: "16:39", dest: "あき亀山"}, {dep: "16:37", arr: "16:42", dest: "五日市"},
+            {dep: "16:45", arr: "16:50", dest: "岩国"}, {dep: "16:49", arr: "16:54", dest: "緑井"},
+            {dep: "16:52", arr: "16:58", dest: "五日市"}, {dep: "16:57", arr: "17:02", dest: "あき亀山"},
+            {dep: "17:00", arr: "17:04", dest: "南岩国"}, {dep: "17:08", arr: "17:13", dest: "五日市"},
+            {dep: "17:12", arr: "17:17", dest: "緑井"}, {dep: "17:15", arr: "17:20", dest: "岩国"},
+            {dep: "17:22", arr: "17:27", dest: "五日市"}, {dep: "17:26", arr: "17:31", dest: "あき亀山"},
+            {dep: "17:30", arr: "17:35", dest: "岩国"}, {dep: "17:35", arr: "17:40", dest: "緑井"},
+            {dep: "17:38", arr: "17:43", dest: "五日市"}, {dep: "17:45", arr: "17:50", dest: "岩国"},
+            {dep: "17:49", arr: "17:55", dest: "あき亀山"}, {dep: "17:52", arr: "17:58", dest: "五日市"},
+            {dep: "18:00", arr: "18:05", dest: "南岩国"}, {dep: "18:03", arr: "18:08", dest: "緑井"},
+            {dep: "18:08", arr: "18:13", dest: "五日市"}, {dep: "18:12", arr: "18:18", dest: "あき亀山"},
+            {dep: "18:15", arr: "18:20", dest: "岩国"}, {dep: "18:22", arr: "18:27", dest: "五日市"},
+            {dep: "18:25", arr: "18:31", dest: "緑井"}, {dep: "18:30", arr: "18:35", dest: "岩国"},
+            {dep: "18:35", arr: "18:41", dest: "あき亀山"}, {dep: "18:38", arr: "18:43", dest: "五日市"},
+            {dep: "18:45", arr: "18:50", dest: "岩国"}, {dep: "18:49", arr: "18:54", dest: "緑井"},
+            {dep: "18:52", arr: "18:57", dest: "岩国"}, {dep: "19:00", arr: "19:05", dest: "岩国"},
+            {dep: "19:03", arr: "19:08", dest: "あき亀山"}, {dep: "19:08", arr: "19:12", dest: "五日市"},
+            {dep: "19:11", arr: "19:16", dest: "緑井"}, {dep: "19:15", arr: "19:19", dest: "岩国"},
+            {dep: "19:23", arr: "19:28", dest: "五日市"}, {dep: "19:26", arr: "19:32", dest: "あき亀山"},
+            {dep: "19:30", arr: "19:35", dest: "岩国"}, {dep: "19:35", arr: "19:41", dest: "緑井"},
+            {dep: "19:45", arr: "19:49", dest: "徳山"}, {dep: "19:51", arr: "19:56", dest: "あき亀山"},
+            {dep: "20:00", arr: "20:05", dest: "岩国"}, {dep: "20:05", arr: "20:10", dest: "緑井"},
+            {dep: "20:10", arr: "20:15", dest: "五日市"}, {dep: "20:13", arr: "20:18", dest: "あき亀山"},
+            {dep: "20:20", arr: "20:24", dest: "岩国"}, {dep: "20:26", arr: "20:31", dest: "緑井"},
+            {dep: "20:30", arr: "20:34", dest: "五日市"}, {dep: "20:40", arr: "20:44", dest: "岩国"},
+            {dep: "20:47", arr: "20:52", dest: "あき亀山"}, {dep: "21:00", arr: "21:04", dest: "岩国"},
+            {dep: "21:03", arr: "21:08", dest: "緑井"}, {dep: "21:12", arr: "21:17", dest: "あき亀山"},
+            {dep: "21:20", arr: "21:25", dest: "岩国"}, {dep: "21:27", arr: "21:32", dest: "緑井"},
+            {dep: "21:30", arr: "21:35", dest: "五日市"}, {dep: "21:40", arr: "21:44", dest: "岩国"},
+            {dep: "21:48", arr: "21:53", dest: "あき亀山"}, {dep: "22:00", arr: "22:04", dest: "岩国"},
+            {dep: "22:09", arr: "22:14", dest: "あき亀山"}, {dep: "22:20", arr: "22:25", dest: "岩国"},
+            {dep: "22:37", arr: "22:42", dest: "あき亀山"}, {dep: "22:40", arr: "22:45", dest: "岩国"},
+            {dep: "23:00", arr: "23:04", dest: "五日市"}, {dep: "23:14", arr: "23:19", dest: "あき亀山"},
+            {dep: "23:20", arr: "23:25", dest: "岩国"}, {dep: "23:41", arr: "23:46", dest: "あき亀山"},
+            {dep: "23:44", arr: "23:48", dest: "五日市"}, {dep: "00:04", arr: "00:09", dest: "岩国"}
         ];
 
         const busData = [
@@ -103,7 +279,7 @@
             {dep: "16:08", arr: "16:23", dest: "こころ南中央"}, {dep: "17:58", arr: "18:13", dest: "花の季台"}
         ];
 
-        // --- 2. ページ読み込み時に現在時刻をセット ---
+        // --- 2. 初期セットアップ ---
         window.onload = () => {
             const now = new Date();
             const h = String(now.getHours()).padStart(2, '0');
@@ -111,48 +287,115 @@
             document.getElementById("targetTime").value = `${h}:${m}`;
         };
 
-        // --- 3. 検索ボタンを押した時のロジック ---
+        // --- 3. ルート検索 ---
         document.getElementById("searchForm").addEventListener("submit", function(e) {
-            e.preventDefault(); // 画面の再読み込みを防ぐ
+            e.preventDefault();
             
             const target = document.getElementById("targetTime").value;
             const resBox = document.getElementById("resultBox");
             const errBox = document.getElementById("errorMsg");
+            const routeTypeBadge = document.getElementById("routeType");
+            const routeSteps = document.getElementById("routeSteps");
             
             resBox.style.display = "none";
             errBox.style.display = "none";
 
-            // JSのfindメソッドで条件に合う「最初の1件」を探す
-            const nextJr = jrData.find(train => train.dep >= target);
-            if (!nextJr) {
-                errBox.innerText = "指定時刻以降のJRが見つかりません。";
+            // ① 直通ルート
+            let directResult = null;
+            const nextJrDirect = jrDirectData.find(t => t.dep >= target);
+            if (nextJrDirect) {
+                const nextBus = busData.find(b => b.dep >= nextJrDirect.arr);
+                if (nextBus) {
+                    directResult = {
+                        type: 'direct',
+                        finalArr: nextBus.arr,
+                        jrDep: nextJrDirect.dep,
+                        jr1: nextJrDirect,
+                        bus: nextBus
+                    };
+                }
+            }
+
+            // ② 広島経由ルート
+            let viaResult = null;
+            const nextJrToHiro = jrToHiroshimaData.find(t => t.dep >= target);
+            if (nextJrToHiro) {
+                const nextJrFromHiro = jrFromHiroshimaData.find(t => t.dep >= nextJrToHiro.arr);
+                if (nextJrFromHiro) {
+                    const nextBus2 = busData.find(b => b.dep >= nextJrFromHiro.arr);
+                    if (nextBus2) {
+                        viaResult = {
+                            type: 'via',
+                            finalArr: nextBus2.arr,
+                            jrDep: nextJrToHiro.dep,
+                            jr1: nextJrToHiro,
+                            jr2: nextJrFromHiro,
+                            bus: nextBus2
+                        };
+                    }
+                }
+            }
+
+            // ③ 判定
+            let bestRoute = null;
+            if (directResult && viaResult) {
+                if (viaResult.finalArr < directResult.finalArr) {
+                    bestRoute = viaResult;
+                } else if (viaResult.finalArr === directResult.finalArr && viaResult.jrDep > directResult.jrDep) {
+                    bestRoute = viaResult;
+                } else {
+                    bestRoute = directResult;
+                }
+            } else {
+                bestRoute = directResult || viaResult;
+            }
+
+            if (!bestRoute) {
+                errBox.innerText = "経路が見つかりません。";
                 errBox.style.display = "block";
                 return;
             }
 
-            const nextBus = busData.find(bus => bus.dep >= nextJr.arr);
-            if (!nextBus) {
-                errBox.innerText = "JRには乗れますが、接続するバスがありません。";
-                errBox.style.display = "block";
-                return;
+            // ④ 描画
+            if (bestRoute.type === 'direct') {
+                routeTypeBadge.innerText = "直通";
+                routeTypeBadge.className = "route-badge direct";
+                routeSteps.innerHTML = `
+                    <div class="route-step">
+                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
+                        <span class="time">${bestRoute.jr1.dep}</span> 向洋 発<br>
+                        <span class="time">${bestRoute.jr1.arr}</span> 横川 着
+                    </div>
+                `;
+            } else {
+                routeTypeBadge.innerText = "広島経由";
+                routeTypeBadge.className = "route-badge";
+                routeSteps.innerHTML = `
+                    <div class="route-step">
+                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
+                        <span class="time">${bestRoute.jr1.dep}</span> 向洋 発<br>
+                        <span class="time">${bestRoute.jr1.arr}</span> 広島 着
+                    </div>
+                    <div class="arrow">▼</div>
+                    <div class="route-step">
+                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr2.dest}行)</div>
+                        <span class="time">${bestRoute.jr2.dep}</span> 広島 発<br>
+                        <span class="time">${bestRoute.jr2.arr}</span> 横川 着
+                    </div>
+                `;
             }
 
-            // 結果を画面に書き込む
-            document.getElementById("jrDep").innerText = nextJr.dep;
-            document.getElementById("jrArr").innerText = nextJr.arr;
-            document.getElementById("jrDest").innerText = nextJr.dest;
-            
-            document.getElementById("busDep").innerText = nextBus.dep;
-            document.getElementById("busArr").innerText = nextBus.arr;
-            document.getElementById("busDest").innerText = nextBus.dest;
+            document.getElementById("busDep").innerText = bestRoute.bus.dep;
+            document.getElementById("busArr").innerText = bestRoute.bus.arr;
+            document.getElementById("busDest").innerText = bestRoute.bus.dest;
             
             resBox.style.display = "block";
         });
 
-        // --- 4. Service Worker の登録（オフラインの魔法） ---
+        // --- 4. Service Worker ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').then(() => {
-                console.log("Service Worker Registered!");
+                console.log("Service Worker Registered");
             });
         }
     </script>
