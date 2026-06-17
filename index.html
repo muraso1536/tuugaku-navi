@@ -10,42 +10,63 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        h1 { font-size: 1.2rem; text-align: center; color: #333; margin-top: 0; margin-bottom: 20px; font-weight: 600; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f2f2f7; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { font-size: 1.2rem; text-align: center; color: #333; margin-top: 0; margin-bottom: 24px; font-weight: 600; }
         
-        /* 切り替えスイッチのスタイル */
-        .toggle-group { display: flex; gap: 8px; margin-bottom: 16px; }
+        /* 切り替えスイッチ */
+        .toggle-group { display: flex; gap: 8px; margin-bottom: 24px; }
         .toggle-label { 
-            flex: 1; text-align: center; background: #fff; border: 2px solid #eee; 
-            padding: 10px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; 
-            font-weight: 600; color: #999; transition: all 0.2s;
+            flex: 1; text-align: center; background: #fff; border: 2px solid #e5e5ea; 
+            padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; 
+            font-weight: 600; color: #8e8e93; transition: all 0.2s;
         }
         .toggle-input:checked + .toggle-label { 
             background: #333; color: white; border-color: #333; 
         }
         .toggle-input { display: none; }
 
-        .input-group { margin-bottom: 16px; }
-        input[type="time"] { width: 100%; padding: 12px; font-size: 1.4rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; text-align: center; background-color: #fafafa; }
-        button { width: 100%; padding: 14px; background-color: #333; color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
-        button:active { background-color: #555; }
+        /* 洗練された時刻入力UI */
+        .input-group { text-align: center; margin-bottom: 24px; position: relative; }
+        input[type="time"] { 
+            appearance: none;
+            -webkit-appearance: none;
+            width: auto;
+            min-width: 140px;
+            padding: 10px 20px; 
+            font-size: 2.2rem; 
+            font-weight: 600;
+            letter-spacing: 2px;
+            border: none; 
+            border-radius: 12px; 
+            background-color: #e5e5ea; 
+            color: #000;
+            text-align: center;
+            display: inline-block;
+        }
+        /* WebKit(Safari/Chrome)で右側の時計アイコンを隠す */
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            background: transparent; bottom: 0; color: transparent; cursor: pointer;
+            height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
+        }
+
+        button { width: 100%; padding: 16px; background-color: #333; color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+        button:active { background-color: #555; transform: scale(0.98); }
         
-        .result-box { margin-top: 24px; padding: 16px; border: 1px solid #eee; background-color: #fafafa; border-radius: 6px; display: none; }
+        .result-box { margin-top: 24px; padding: 16px; border: 1px solid #e5e5ea; background-color: #fafafa; border-radius: 10px; display: none; }
         .route-badge { display: inline-block; background-color: #666; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-bottom: 12px; letter-spacing: 0.05em; }
         .route-badge.direct { background-color: #005baa; }
         
-        .route-step { margin-bottom: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #eee; }
-        .time { font-size: 1.2rem; font-weight: 600; color: #333; margin-right: 8px; }
-        .arrow { text-align: center; color: #999; font-size: 0.9rem; margin: 8px 0; }
-        .error { color: #d93025; font-size: 0.9rem; text-align: center; display: none; margin-top: 16px;}
+        .route-step { margin-bottom: 8px; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e5ea; box-shadow: 0 1px 2px rgba(0,0,0,0.02);}
+        .time { font-size: 1.3rem; font-weight: 700; color: #333; margin-right: 8px; }
+        .arrow { text-align: center; color: #aeaeb2; font-size: 0.9rem; margin: 8px 0; }
+        .error { color: #ff3b30; font-size: 0.9rem; font-weight: 600; text-align: center; display: none; margin-top: 16px;}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>市大通学ナビ</h1>
         <form id="searchForm">
-            <!-- 検索タイプの切り替え -->
             <div class="toggle-group">
                 <input type="radio" id="typeDep" name="searchType" value="departure" class="toggle-input" checked>
                 <label for="typeDep" class="toggle-label">出発から</label>
@@ -56,6 +77,7 @@
             <div class="input-group">
                 <input type="time" id="targetTime" required>
             </div>
+            
             <button type="submit">検索</button>
         </form>
 
@@ -63,13 +85,10 @@
 
         <div id="resultBox" class="result-box">
             <div id="routeType" class="route-badge"></div>
-            
             <div id="routeSteps"></div>
-            
             <div class="arrow">▼</div>
-            
             <div class="route-step">
-                <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">広電バス (<span id="busDest"></span>行)</div>
+                <div style="font-size: 0.8rem; color: #8e8e93; margin-bottom: 4px;">広電バス (<span id="busDest"></span>行)</div>
                 <span class="time" id="busDep"></span> 横川駅前 発<br>
                 <span class="time" id="busArr"></span> 市立大学前 着
             </div>
@@ -77,7 +96,7 @@
     </div>
 
     <script>
-        // --- 1. データ群 ---
+        // --- 1. データ群 (深夜00時台を24:xxに修正済) ---
         const jrDirectData = [
             {dep: "05:40", arr: "05:56", dest: "岩国"}, {dep: "06:12", arr: "06:29", dest: "岩国"},
             {dep: "06:32", arr: "06:45", dest: "南岩国"}, {dep: "06:41", arr: "07:03", dest: "由宇"},
@@ -119,7 +138,7 @@
             {dep: "21:10", arr: "21:25", dest: "岩国"}, {dep: "21:30", arr: "21:44", dest: "岩国"},
             {dep: "21:51", arr: "22:04", dest: "岩国"}, {dep: "22:11", arr: "22:25", dest: "岩国"},
             {dep: "22:32", arr: "22:45", dest: "岩国"}, {dep: "23:11", arr: "23:25", dest: "岩国"},
-            {dep: "23:31", arr: "23:48", dest: "五日市"}, {dep: "23:56", arr: "00:09", dest: "岩国"}
+            {dep: "23:31", arr: "23:48", dest: "五日市"}, {dep: "23:56", arr: "24:09", dest: "岩国"} // ←修正
         ];
 
         const jrToHiroshimaData = [
@@ -184,7 +203,7 @@
             {dep: "22:38", arr: "22:44", dest: "広島"}, {dep: "22:51", arr: "22:56", dest: "広島"},
             {dep: "23:02", arr: "23:07", dest: "広島"}, {dep: "23:11", arr: "23:17", dest: "岩国"},
             {dep: "23:31", arr: "23:37", dest: "五日市"}, {dep: "23:52", arr: "23:58", dest: "広島"},
-            {dep: "23:56", arr: "00:01", dest: "岩国"}
+            {dep: "23:56", arr: "24:01", dest: "岩国"} // ←修正
         ];
 
         const jrFromHiroshimaData = [
@@ -269,7 +288,7 @@
             {dep: "22:37", arr: "22:42", dest: "あき亀山"}, {dep: "22:40", arr: "22:45", dest: "岩国"},
             {dep: "23:00", arr: "23:04", dest: "五日市"}, {dep: "23:14", arr: "23:19", dest: "あき亀山"},
             {dep: "23:20", arr: "23:25", dest: "岩国"}, {dep: "23:41", arr: "23:46", dest: "あき亀山"},
-            {dep: "23:44", arr: "23:48", dest: "五日市"}, {dep: "00:04", arr: "00:09", dest: "岩国"}
+            {dep: "23:44", arr: "23:48", dest: "五日市"}, {dep: "24:04", arr: "24:09", dest: "岩国"} // ←修正
         ];
 
         const busData = [
@@ -300,7 +319,15 @@
             {dep: "16:08", arr: "16:23", dest: "こころ南中央"}, {dep: "17:58", arr: "18:13", dest: "花の季台"}
         ];
 
-        // --- 2. 初期セットアップ ---
+        // --- 2. 補助関数（24時表記を00時表記に戻す） ---
+        function displayTime(timeStr) {
+            if (!timeStr) return "";
+            if (timeStr.startsWith("24:")) {
+                return "00:" + timeStr.substring(3);
+            }
+            return timeStr;
+        }
+
         window.onload = () => {
             const now = new Date();
             const h = String(now.getHours()).padStart(2, '0');
@@ -312,7 +339,12 @@
         document.getElementById("searchForm").addEventListener("submit", function(e) {
             e.preventDefault();
             
-            const target = document.getElementById("targetTime").value;
+            let target = document.getElementById("targetTime").value;
+            // 深夜00時台の入力を24:xxに変換して計算
+            if (target.startsWith("00:")) {
+                target = "24:" + target.substring(3);
+            }
+
             const searchType = document.querySelector('input[name="searchType"]:checked').value;
             const resBox = document.getElementById("resultBox");
             const errBox = document.getElementById("errorMsg");
@@ -326,31 +358,23 @@
 
             if (searchType === 'departure') {
                 // =============== 出発時刻からの検索 ===============
-                
-                // ① 直通ルート
                 let directResult = null;
                 const nextJrDirect = jrDirectData.find(t => t.dep >= target);
                 if (nextJrDirect) {
                     const nextBus = busData.find(b => b.dep >= nextJrDirect.arr);
-                    if (nextBus) {
-                        directResult = { type: 'direct', finalArr: nextBus.arr, jrDep: nextJrDirect.dep, jr1: nextJrDirect, bus: nextBus };
-                    }
+                    if (nextBus) directResult = { type: 'direct', finalArr: nextBus.arr, jrDep: nextJrDirect.dep, jr1: nextJrDirect, bus: nextBus };
                 }
 
-                // ② 広島経由ルート
                 let viaResult = null;
                 const nextJrToHiro = jrToHiroshimaData.find(t => t.dep >= target);
                 if (nextJrToHiro) {
                     const nextJrFromHiro = jrFromHiroshimaData.find(t => t.dep >= nextJrToHiro.arr);
                     if (nextJrFromHiro) {
                         const nextBus2 = busData.find(b => b.dep >= nextJrFromHiro.arr);
-                        if (nextBus2) {
-                            viaResult = { type: 'via', finalArr: nextBus2.arr, jrDep: nextJrToHiro.dep, jr1: nextJrToHiro, jr2: nextJrFromHiro, bus: nextBus2 };
-                        }
+                        if (nextBus2) viaResult = { type: 'via', finalArr: nextBus2.arr, jrDep: nextJrToHiro.dep, jr1: nextJrToHiro, jr2: nextJrFromHiro, bus: nextBus2 };
                     }
                 }
 
-                // ③ 判定 (早く着く方を優先。同着なら家を遅く出れる方)
                 if (directResult && viaResult) {
                     if (viaResult.finalArr < directResult.finalArr) bestRoute = viaResult;
                     else if (viaResult.finalArr === directResult.finalArr && viaResult.jrDep > directResult.jrDep) bestRoute = viaResult;
@@ -360,22 +384,16 @@
                 }
 
             } else {
-                // =============== 到着時刻からの検索（逆算） ===============
-                
-                // 1. 指定時刻に間に合う「最も遅いバス」を見つける
+                // =============== 到着時刻からの逆算 ===============
                 const reversedBusData = [...busData].reverse();
                 const bestBus = reversedBusData.find(b => b.arr <= target);
                 
                 if (bestBus) {
-                    // ① 直通ルート (バスに間に合う最も遅い直通JR)
                     let directResult = null;
                     const reversedJrDirect = [...jrDirectData].reverse();
                     const directJr = reversedJrDirect.find(t => t.arr <= bestBus.dep);
-                    if (directJr) {
-                        directResult = { type: 'direct', jrDep: directJr.dep, jr1: directJr, bus: bestBus };
-                    }
+                    if (directJr) directResult = { type: 'direct', jrDep: directJr.dep, jr1: directJr, bus: bestBus };
 
-                    // ② 広島経由ルート (バスに間に合う最も遅いJR → そのJRに間に合う最も遅いJR)
                     let viaResult = null;
                     const reversedJrFromHiro = [...jrFromHiroshimaData].reverse();
                     const reversedJrToHiro = [...jrToHiroshimaData].reverse();
@@ -383,15 +401,12 @@
                     const viaJr2 = reversedJrFromHiro.find(t => t.arr <= bestBus.dep);
                     if (viaJr2) {
                         const viaJr1 = reversedJrToHiro.find(t => t.arr <= viaJr2.dep);
-                        if (viaJr1) {
-                            viaResult = { type: 'via', jrDep: viaJr1.dep, jr1: viaJr1, jr2: viaJr2, bus: bestBus };
-                        }
+                        if (viaJr1) viaResult = { type: 'via', jrDep: viaJr1.dep, jr1: viaJr1, jr2: viaJr2, bus: bestBus };
                     }
 
-                    // ③ 判定 (家を「最も遅く出られる」方を優先)
                     if (directResult && viaResult) {
                         if (viaResult.jrDep > directResult.jrDep) bestRoute = viaResult;
-                        else bestRoute = directResult; // 同時刻なら乗り換えのない直通を優先
+                        else bestRoute = directResult;
                     } else {
                         bestRoute = directResult || viaResult;
                     }
@@ -404,15 +419,15 @@
                 return;
             }
 
-            // ④ 描画処理
+            // ④ 描画処理 (24時を00時に戻す)
             if (bestRoute.type === 'direct') {
                 routeTypeBadge.innerText = "直通";
                 routeTypeBadge.className = "route-badge direct";
                 routeSteps.innerHTML = `
                     <div class="route-step">
-                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
-                        <span class="time">${bestRoute.jr1.dep}</span> 向洋 発<br>
-                        <span class="time">${bestRoute.jr1.arr}</span> 横川 着
+                        <div style="font-size: 0.8rem; color: #8e8e93; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
+                        <span class="time">${displayTime(bestRoute.jr1.dep)}</span> 向洋 発<br>
+                        <span class="time">${displayTime(bestRoute.jr1.arr)}</span> 横川 着
                     </div>
                 `;
             } else {
@@ -420,21 +435,21 @@
                 routeTypeBadge.className = "route-badge";
                 routeSteps.innerHTML = `
                     <div class="route-step">
-                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
-                        <span class="time">${bestRoute.jr1.dep}</span> 向洋 発<br>
-                        <span class="time">${bestRoute.jr1.arr}</span> 広島 着
+                        <div style="font-size: 0.8rem; color: #8e8e93; margin-bottom: 4px;">JR (${bestRoute.jr1.dest}行)</div>
+                        <span class="time">${displayTime(bestRoute.jr1.dep)}</span> 向洋 発<br>
+                        <span class="time">${displayTime(bestRoute.jr1.arr)}</span> 広島 着
                     </div>
                     <div class="arrow">▼</div>
                     <div class="route-step">
-                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">JR (${bestRoute.jr2.dest}行)</div>
-                        <span class="time">${bestRoute.jr2.dep}</span> 広島 発<br>
-                        <span class="time">${bestRoute.jr2.arr}</span> 横川 着
+                        <div style="font-size: 0.8rem; color: #8e8e93; margin-bottom: 4px;">JR (${bestRoute.jr2.dest}行)</div>
+                        <span class="time">${displayTime(bestRoute.jr2.dep)}</span> 広島 発<br>
+                        <span class="time">${displayTime(bestRoute.jr2.arr)}</span> 横川 着
                     </div>
                 `;
             }
 
-            document.getElementById("busDep").innerText = bestRoute.bus.dep;
-            document.getElementById("busArr").innerText = bestRoute.bus.arr;
+            document.getElementById("busDep").innerText = displayTime(bestRoute.bus.dep);
+            document.getElementById("busArr").innerText = displayTime(bestRoute.bus.arr);
             document.getElementById("busDest").innerText = bestRoute.bus.dest;
             
             resBox.style.display = "block";
