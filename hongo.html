@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>市大通学ナビ</title>
+    <title>むらそうNAVI (本郷版)</title>
     
     <meta name="theme-color" content="#333333">
     <link rel="apple-touch-icon" href="images.jpg">
@@ -46,7 +46,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>市大通学ナビ (本郷版)</h1>
+        <h1>むらそうNAVI (本郷版)</h1>
         <form id="searchForm">
             <div class="toggle-group">
                 <input type="radio" id="typeDep" name="searchType" value="departure" class="toggle-input" checked>
@@ -80,7 +80,7 @@
     </div>
 
     <script>
-        // --- 1. データ群 (本郷駅発のJRと横川発のバス) ---
+        // --- 1. データ群 ---
         const jrData = [
             {dep: "06:19", arr: "07:27", dest: "岩国"}, {dep: "06:53", arr: "08:11", dest: "岩国"},
             {dep: "07:05", arr: "08:18", dest: "五日市"}, {dep: "07:31", arr: "08:50", dest: "五日市"},
@@ -135,7 +135,7 @@
             document.getElementById("targetTime").value = `${h}:${m}`;
         };
 
-        // --- 3. ルート検索（本郷版は直通計算のみ） ---
+        // --- 3. ルート検索 ---
         document.getElementById("searchForm").addEventListener("submit", function(e) {
             e.preventDefault();
             
@@ -158,12 +158,19 @@
                     if (nextBus) bestRoute = { jr: nextJr, bus: nextBus };
                 }
             } else {
-                const reversedBusData = [...busData].reverse();
-                const bestBus = reversedBusData.find(b => b.arr <= target);
-                if (bestBus) {
-                    const reversedJrData = [...jrData].reverse();
-                    const directJr = reversedJrData.find(t => t.arr <= bestBus.dep);
-                    if (directJr) bestRoute = { jr: directJr, bus: bestBus };
+                // =============== 到着検索（逆算：横川で待たずにすぐ乗るロジック） ===============
+                const reversedJrData = [...jrData].reverse();
+                
+                // 「指定の到着時刻」に間に合う電車のうち、最も遅いもの（ギリギリのやつ）から順に検証
+                for (let jr of reversedJrData) {
+                    // 横川に到着した後、最初に出発する（すぐ乗れる）バスを探す
+                    const immediateBus = busData.find(b => b.dep >= jr.arr);
+                    
+                    // その「すぐ乗ったバス」が、ちゃんと設定した到着時刻までに大学に着くなら、これがベストルート！
+                    if (immediateBus && immediateBus.arr <= target) {
+                        bestRoute = { jr: jr, bus: immediateBus };
+                        break; // ギリギリの電車が見つかったので、ここで確定して終了
+                    }
                 }
             }
 
