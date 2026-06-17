@@ -13,6 +13,19 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 400px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         h1 { font-size: 1.2rem; text-align: center; color: #333; margin-top: 0; margin-bottom: 20px; font-weight: 600; }
+        
+        /* 切り替えスイッチのスタイル */
+        .toggle-group { display: flex; gap: 8px; margin-bottom: 16px; }
+        .toggle-label { 
+            flex: 1; text-align: center; background: #fff; border: 2px solid #eee; 
+            padding: 10px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; 
+            font-weight: 600; color: #999; transition: all 0.2s;
+        }
+        .toggle-input:checked + .toggle-label { 
+            background: #333; color: white; border-color: #333; 
+        }
+        .toggle-input { display: none; }
+
         .input-group { margin-bottom: 16px; }
         input[type="time"] { width: 100%; padding: 12px; font-size: 1.4rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; text-align: center; background-color: #fafafa; }
         button { width: 100%; padding: 14px; background-color: #333; color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
@@ -32,6 +45,14 @@
     <div class="container">
         <h1>市大通学ナビ</h1>
         <form id="searchForm">
+            <!-- 検索タイプの切り替え -->
+            <div class="toggle-group">
+                <input type="radio" id="typeDep" name="searchType" value="departure" class="toggle-input" checked>
+                <label for="typeDep" class="toggle-label">出発から</label>
+                <input type="radio" id="typeArr" name="searchType" value="arrival" class="toggle-input">
+                <label for="typeArr" class="toggle-label">到着から</label>
+            </div>
+
             <div class="input-group">
                 <input type="time" id="targetTime" required>
             </div>
@@ -292,6 +313,7 @@
             e.preventDefault();
             
             const target = document.getElementById("targetTime").value;
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
             const resBox = document.getElementById("resultBox");
             const errBox = document.getElementById("errorMsg");
             const routeTypeBadge = document.getElementById("routeType");
@@ -300,63 +322,89 @@
             resBox.style.display = "none";
             errBox.style.display = "none";
 
-            // ① 直通ルート
-            let directResult = null;
-            const nextJrDirect = jrDirectData.find(t => t.dep >= target);
-            if (nextJrDirect) {
-                const nextBus = busData.find(b => b.dep >= nextJrDirect.arr);
-                if (nextBus) {
-                    directResult = {
-                        type: 'direct',
-                        finalArr: nextBus.arr,
-                        jrDep: nextJrDirect.dep,
-                        jr1: nextJrDirect,
-                        bus: nextBus
-                    };
-                }
-            }
+            let bestRoute = null;
 
-            // ② 広島経由ルート
-            let viaResult = null;
-            const nextJrToHiro = jrToHiroshimaData.find(t => t.dep >= target);
-            if (nextJrToHiro) {
-                const nextJrFromHiro = jrFromHiroshimaData.find(t => t.dep >= nextJrToHiro.arr);
-                if (nextJrFromHiro) {
-                    const nextBus2 = busData.find(b => b.dep >= nextJrFromHiro.arr);
-                    if (nextBus2) {
-                        viaResult = {
-                            type: 'via',
-                            finalArr: nextBus2.arr,
-                            jrDep: nextJrToHiro.dep,
-                            jr1: nextJrToHiro,
-                            jr2: nextJrFromHiro,
-                            bus: nextBus2
-                        };
+            if (searchType === 'departure') {
+                // =============== 出発時刻からの検索 ===============
+                
+                // ① 直通ルート
+                let directResult = null;
+                const nextJrDirect = jrDirectData.find(t => t.dep >= target);
+                if (nextJrDirect) {
+                    const nextBus = busData.find(b => b.dep >= nextJrDirect.arr);
+                    if (nextBus) {
+                        directResult = { type: 'direct', finalArr: nextBus.arr, jrDep: nextJrDirect.dep, jr1: nextJrDirect, bus: nextBus };
+                    }
+                }
+
+                // ② 広島経由ルート
+                let viaResult = null;
+                const nextJrToHiro = jrToHiroshimaData.find(t => t.dep >= target);
+                if (nextJrToHiro) {
+                    const nextJrFromHiro = jrFromHiroshimaData.find(t => t.dep >= nextJrToHiro.arr);
+                    if (nextJrFromHiro) {
+                        const nextBus2 = busData.find(b => b.dep >= nextJrFromHiro.arr);
+                        if (nextBus2) {
+                            viaResult = { type: 'via', finalArr: nextBus2.arr, jrDep: nextJrToHiro.dep, jr1: nextJrToHiro, jr2: nextJrFromHiro, bus: nextBus2 };
+                        }
+                    }
+                }
+
+                // ③ 判定 (早く着く方を優先。同着なら家を遅く出れる方)
+                if (directResult && viaResult) {
+                    if (viaResult.finalArr < directResult.finalArr) bestRoute = viaResult;
+                    else if (viaResult.finalArr === directResult.finalArr && viaResult.jrDep > directResult.jrDep) bestRoute = viaResult;
+                    else bestRoute = directResult;
+                } else {
+                    bestRoute = directResult || viaResult;
+                }
+
+            } else {
+                // =============== 到着時刻からの検索（逆算） ===============
+                
+                // 1. 指定時刻に間に合う「最も遅いバス」を見つける
+                const reversedBusData = [...busData].reverse();
+                const bestBus = reversedBusData.find(b => b.arr <= target);
+                
+                if (bestBus) {
+                    // ① 直通ルート (バスに間に合う最も遅い直通JR)
+                    let directResult = null;
+                    const reversedJrDirect = [...jrDirectData].reverse();
+                    const directJr = reversedJrDirect.find(t => t.arr <= bestBus.dep);
+                    if (directJr) {
+                        directResult = { type: 'direct', jrDep: directJr.dep, jr1: directJr, bus: bestBus };
+                    }
+
+                    // ② 広島経由ルート (バスに間に合う最も遅いJR → そのJRに間に合う最も遅いJR)
+                    let viaResult = null;
+                    const reversedJrFromHiro = [...jrFromHiroshimaData].reverse();
+                    const reversedJrToHiro = [...jrToHiroshimaData].reverse();
+                    
+                    const viaJr2 = reversedJrFromHiro.find(t => t.arr <= bestBus.dep);
+                    if (viaJr2) {
+                        const viaJr1 = reversedJrToHiro.find(t => t.arr <= viaJr2.dep);
+                        if (viaJr1) {
+                            viaResult = { type: 'via', jrDep: viaJr1.dep, jr1: viaJr1, jr2: viaJr2, bus: bestBus };
+                        }
+                    }
+
+                    // ③ 判定 (家を「最も遅く出られる」方を優先)
+                    if (directResult && viaResult) {
+                        if (viaResult.jrDep > directResult.jrDep) bestRoute = viaResult;
+                        else bestRoute = directResult; // 同時刻なら乗り換えのない直通を優先
+                    } else {
+                        bestRoute = directResult || viaResult;
                     }
                 }
             }
 
-            // ③ 判定
-            let bestRoute = null;
-            if (directResult && viaResult) {
-                if (viaResult.finalArr < directResult.finalArr) {
-                    bestRoute = viaResult;
-                } else if (viaResult.finalArr === directResult.finalArr && viaResult.jrDep > directResult.jrDep) {
-                    bestRoute = viaResult;
-                } else {
-                    bestRoute = directResult;
-                }
-            } else {
-                bestRoute = directResult || viaResult;
-            }
-
             if (!bestRoute) {
-                errBox.innerText = "経路が見つかりません。";
+                errBox.innerText = "条件に合う経路が見つかりません。";
                 errBox.style.display = "block";
                 return;
             }
 
-            // ④ 描画
+            // ④ 描画処理
             if (bestRoute.type === 'direct') {
                 routeTypeBadge.innerText = "直通";
                 routeTypeBadge.className = "route-badge direct";
