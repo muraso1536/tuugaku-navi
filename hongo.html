@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>むらそうNAVI</title>
+    <title>むらそうNAVI (本郷版)</title>
     
     <meta name="theme-color" content="#333333">
     <link rel="apple-touch-icon" href="images.jpg">
@@ -46,7 +46,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>むらそうNAVI</h1>
+        <h1>むらそうNAVI (本郷版)</h1>
         <form id="searchForm">
             <div class="toggle-group">
                 <input type="radio" id="typeDep" name="searchType" value="departure" class="toggle-input" checked>
@@ -158,18 +158,24 @@
                     if (nextBus) bestRoute = { jr: nextJr, bus: nextBus };
                 }
             } else {
-                // =============== 到着検索（逆算：横川で待たずにすぐ乗るロジック） ===============
-                const reversedJrData = [...jrData].reverse();
+                // =============== 【あなたが提案してくれた完璧なロジック！】 ===============
                 
-                // 「指定の到着時刻」に間に合う電車のうち、最も遅いもの（ギリギリのやつ）から順に検証
-                for (let jr of reversedJrData) {
-                    // 横川に到着した後、最初に出発する（すぐ乗れる）バスを探す
-                    const immediateBus = busData.find(b => b.dep >= jr.arr);
+                // 1. 指定された到着時刻に間に合う「理想のバス」を探す（一番遅いバス）
+                const reversedBusData = [...busData].reverse();
+                const idealBus = reversedBusData.find(b => b.arr <= target);
+                
+                if (idealBus) {
+                    // 2. そのバスの発車時刻に間に合う「最高の電車」を探す（限界まで寝られる電車）
+                    const reversedJrData = [...jrData].reverse();
+                    const bestJr = reversedJrData.find(t => t.arr <= idealBus.dep);
                     
-                    // その「すぐ乗ったバス」が、ちゃんと設定した到着時刻までに大学に着くなら、これがベストルート！
-                    if (immediateBus && immediateBus.arr <= target) {
-                        bestRoute = { jr: jr, bus: immediateBus };
-                        break; // ギリギリの電車が見つかったので、ここで確定して終了
+                    if (bestJr) {
+                        // 3. その電車で横川に着いたら、待たずにすぐ乗れる「現実のバス」を探す
+                        const actualBus = busData.find(b => b.dep >= bestJr.arr);
+                        
+                        if (actualBus) {
+                            bestRoute = { jr: bestJr, bus: actualBus };
+                        }
                     }
                 }
             }
