@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>市大通学ナビ</title>
+    <title>むらそうNAVI</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#333333">
@@ -44,7 +44,6 @@
             text-align: center;
             display: inline-block;
         }
-        /* WebKit(Safari/Chrome)で右側の時計アイコンを隠す */
         input[type="time"]::-webkit-calendar-picker-indicator {
             background: transparent; bottom: 0; color: transparent; cursor: pointer;
             height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
@@ -65,7 +64,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>市大通学ナビ</h1>
+        <h1>むらそうNAVI</h1>
         <form id="searchForm">
             <div class="toggle-group">
                 <input type="radio" id="typeDep" name="searchType" value="departure" class="toggle-input" checked>
@@ -96,7 +95,8 @@
     </div>
 
     <script>
-        // --- 1. データ群 (深夜00時台を24:xxに修正済) ---
+        // --- 1. データ群 ---
+        // ①直通データ
         const jrDirectData = [
             {dep: "05:40", arr: "05:56", dest: "岩国"}, {dep: "06:12", arr: "06:29", dest: "岩国"},
             {dep: "06:32", arr: "06:45", dest: "南岩国"}, {dep: "06:41", arr: "07:03", dest: "由宇"},
@@ -138,9 +138,10 @@
             {dep: "21:10", arr: "21:25", dest: "岩国"}, {dep: "21:30", arr: "21:44", dest: "岩国"},
             {dep: "21:51", arr: "22:04", dest: "岩国"}, {dep: "22:11", arr: "22:25", dest: "岩国"},
             {dep: "22:32", arr: "22:45", dest: "岩国"}, {dep: "23:11", arr: "23:25", dest: "岩国"},
-            {dep: "23:31", arr: "23:48", dest: "五日市"}, {dep: "23:56", arr: "24:09", dest: "岩国"} // ←修正
+            {dep: "23:31", arr: "23:48", dest: "五日市"}, {dep: "23:56", arr: "24:09", dest: "岩国"}
         ];
 
+        // ②向洋 ➔ 広島
         const jrToHiroshimaData = [
             {dep: "05:40", arr: "05:45", dest: "岩国"}, {dep: "05:43", arr: "05:49", dest: "広島"},
             {dep: "06:12", arr: "06:18", dest: "岩国"}, {dep: "06:32", arr: "06:38", dest: "南岩国"},
@@ -203,9 +204,10 @@
             {dep: "22:38", arr: "22:44", dest: "広島"}, {dep: "22:51", arr: "22:56", dest: "広島"},
             {dep: "23:02", arr: "23:07", dest: "広島"}, {dep: "23:11", arr: "23:17", dest: "岩国"},
             {dep: "23:31", arr: "23:37", dest: "五日市"}, {dep: "23:52", arr: "23:58", dest: "広島"},
-            {dep: "23:56", arr: "24:01", dest: "岩国"} // ←修正
+            {dep: "23:56", arr: "24:01", dest: "岩国"}
         ];
 
+        // ③広島 ➔ 横川
         const jrFromHiroshimaData = [
             {dep: "05:40", arr: "05:45", dest: "緑井"}, {dep: "05:52", arr: "05:56", dest: "岩国"},
             {dep: "05:55", arr: "06:00", dest: "あき亀山"}, {dep: "06:04", arr: "06:09", dest: "緑井"},
@@ -288,9 +290,10 @@
             {dep: "22:37", arr: "22:42", dest: "あき亀山"}, {dep: "22:40", arr: "22:45", dest: "岩国"},
             {dep: "23:00", arr: "23:04", dest: "五日市"}, {dep: "23:14", arr: "23:19", dest: "あき亀山"},
             {dep: "23:20", arr: "23:25", dest: "岩国"}, {dep: "23:41", arr: "23:46", dest: "あき亀山"},
-            {dep: "23:44", arr: "23:48", dest: "五日市"}, {dep: "24:04", arr: "24:09", dest: "岩国"} // ←修正
+            {dep: "23:44", arr: "23:48", dest: "五日市"}, {dep: "24:04", arr: "24:09", dest: "岩国"}
         ];
 
+        // ④横川駅 ➔ 市大
         const busData = [
             {dep: "07:48", arr: "08:03", dest: "こころ南中央"}, {dep: "07:53", arr: "08:08", dest: "こころ産業団地"},
             {dep: "07:58", arr: "08:13", dest: "こころ南中央"}, {dep: "08:03", arr: "08:18", dest: "こころ産業団地"},
@@ -319,13 +322,9 @@
             {dep: "16:08", arr: "16:23", dest: "こころ南中央"}, {dep: "17:58", arr: "18:13", dest: "花の季台"}
         ];
 
-        // --- 2. 補助関数（24時表記を00時表記に戻す） ---
         function displayTime(timeStr) {
             if (!timeStr) return "";
-            if (timeStr.startsWith("24:")) {
-                return "00:" + timeStr.substring(3);
-            }
-            return timeStr;
+            return timeStr.startsWith("24:") ? "00:" + timeStr.substring(3) : timeStr;
         }
 
         window.onload = () => {
@@ -335,15 +334,12 @@
             document.getElementById("targetTime").value = `${h}:${m}`;
         };
 
-        // --- 3. ルート検索 ---
+        // --- 3. ルート検索（直通・広島経由の自動判定＆すぐ乗るロジック） ---
         document.getElementById("searchForm").addEventListener("submit", function(e) {
             e.preventDefault();
             
             let target = document.getElementById("targetTime").value;
-            // 深夜00時台の入力を24:xxに変換して計算
-            if (target.startsWith("00:")) {
-                target = "24:" + target.substring(3);
-            }
+            if (target.startsWith("00:")) target = "24:" + target.substring(3);
 
             const searchType = document.querySelector('input[name="searchType"]:checked').value;
             const resBox = document.getElementById("resultBox");
@@ -384,31 +380,52 @@
                 }
 
             } else {
-                // =============== 到着時刻からの逆算 ===============
-                const reversedBusData = [...busData].reverse();
-                const bestBus = reversedBusData.find(b => b.arr <= target);
+                // =============== 到着時刻からの逆算（最強ロジック） ===============
                 
-                if (bestBus) {
+                // 1. 指定の到着時刻までに大学に着く「一番遅い理想のバス」を探す
+                const reversedBusData = [...busData].reverse();
+                const idealBus = reversedBusData.find(b => b.arr <= target);
+                
+                if (idealBus) {
+                    // 2. そのバスの発車時刻までに横川に着く「限界まで寝ていられる電車」を探す
+                    
+                    // 【検証A】直通ルートの場合
                     let directResult = null;
                     const reversedJrDirect = [...jrDirectData].reverse();
-                    const directJr = reversedJrDirect.find(t => t.arr <= bestBus.dep);
-                    if (directJr) directResult = { type: 'direct', jrDep: directJr.dep, jr1: directJr, bus: bestBus };
+                    const directJr = reversedJrDirect.find(t => t.arr <= idealBus.dep);
+                    if (directJr) {
+                        directResult = { type: 'direct', jrDep: directJr.dep, jr1: directJr, finalArr: directJr.arr };
+                    }
 
+                    // 【検証B】広島経由ルートの場合
                     let viaResult = null;
                     const reversedJrFromHiro = [...jrFromHiroshimaData].reverse();
                     const reversedJrToHiro = [...jrToHiroshimaData].reverse();
                     
-                    const viaJr2 = reversedJrFromHiro.find(t => t.arr <= bestBus.dep);
+                    const viaJr2 = reversedJrFromHiro.find(t => t.arr <= idealBus.dep);
                     if (viaJr2) {
                         const viaJr1 = reversedJrToHiro.find(t => t.arr <= viaJr2.dep);
-                        if (viaJr1) viaResult = { type: 'via', jrDep: viaJr1.dep, jr1: viaJr1, jr2: viaJr2, bus: bestBus };
+                        if (viaJr1) {
+                            viaResult = { type: 'via', jrDep: viaJr1.dep, jr1: viaJr1, jr2: viaJr2, finalArr: viaJr2.arr };
+                        }
                     }
 
+                    // どっちが家を遅く出られるか勝負
+                    let bestJrRoute = null;
                     if (directResult && viaResult) {
-                        if (viaResult.jrDep > directResult.jrDep) bestRoute = viaResult;
-                        else bestRoute = directResult;
+                        if (viaResult.jrDep > directResult.jrDep) bestJrRoute = viaResult;
+                        else bestJrRoute = directResult; // 同時間に出発するなら乗り換えのない直通の勝ち
                     } else {
-                        bestRoute = directResult || viaResult;
+                        bestJrRoute = directResult || viaResult;
+                    }
+
+                    // 3. その勝者の電車で横川に着いたら、待たずにすぐ乗れる「現実のバス」を探す
+                    if (bestJrRoute) {
+                        const actualBus = busData.find(b => b.dep >= bestJrRoute.finalArr);
+                        if (actualBus) {
+                            bestRoute = bestJrRoute;
+                            bestRoute.bus = actualBus;
+                        }
                     }
                 }
             }
@@ -419,7 +436,7 @@
                 return;
             }
 
-            // ④ 描画処理 (24時を00時に戻す)
+            // ④ 描画処理
             if (bestRoute.type === 'direct') {
                 routeTypeBadge.innerText = "直通";
                 routeTypeBadge.className = "route-badge direct";
@@ -454,13 +471,6 @@
             
             resBox.style.display = "block";
         });
-
-        // --- 4. Service Worker ---
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => {
-                console.log("Service Worker Registered");
-            });
-        }
     </script>
 </body>
 </html>
